@@ -1,0 +1,10 @@
+cat > /mnt/c/Users/user/OneDrive/Desktop/PROJECTS/E-COMMERCE/Backend/.dockerignore << 'EOF'
+node_modules
+.env
+secrets.yml
+ingress.yml
+backend-deployment.yml
+.git
+*.log
+EOF
+
