@@ -39,8 +39,19 @@ password: {
       return true;
     },
     message: "Password is required for local signup and must be at least 6 characters."
-  }
+  },
+ isVerified: { type: Boolean, default: false },
+ 
 },
+// 🔴 ADD THESE TWO FIELDS HERE:
+  otp: { 
+    type: String, 
+    default: null 
+  },
+  otpExpires: { 
+    type: Date, 
+    default: null 
+  },
 googleId: {
   type: String,
   unique: true,

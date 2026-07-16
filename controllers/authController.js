@@ -3,6 +3,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import { OAuth2Client } from 'google-auth-library';
+import { validate } from "deep-email-validator";
+
+import crypto from "crypto";
+
+
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -49,50 +54,180 @@ export const googleAuth = async (req, res) => {
     res.status(401).json({ message: "Invalid Google Token" });
   }
 };
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
 
-// --- LOCAL REGISTER ---
 export const register = async (req, res) => {
-  const { name, email, password } = req.body; // Using 'email' to match updated model
+  const { name, email, password } = req.body;
 
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: "User already exists" });
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
 
+    // Check if user exists
+    const existingUser = await User.findOne({ email });
+    
+    if (existingUser) {
+      // If they are already verified, they cannot register again
+      if (existingUser.isVerified) {
+        return res.status(400).json({ message: "An account with this email already exists" });
+      }
+      
+      // If they exist but are NOT verified, we will let them retry registration.
+      // We'll delete their unverified record to avoid duplication issues.
+      await User.deleteOne({ email });
+    }
+
+    // 1. Generate unique OTP and expiration (10 minutes from now)
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
+
+    // 2. Try sending the OTP email first
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    });
+
+    try {
+      await transporter.sendMail({
+        from: `"ECOMMERCE SHOP" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: "Your Verification Code - ECOMMERCE SHOP",
+        html: `
+          <h2>Welcome ${name}!</h2>
+          <p>Thank you for signing up. Please use the verification code below to complete your registration:</p>
+          <h1 style="color: #4CAF50; font-size: 32px; letter-spacing: 2px;">${otp}</h1>
+          <p>This code is valid for 10 minutes.</p>
+        `,
+      });
+    } catch (mailError) {
+      console.error("Mail Error:", mailError.message);
+      return res.status(400).json({ message: "Invalid email address or delivery failed." });
+    }
+
+    // 3. Hash password and save the UNVERIFIED user to the database
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await User.create({
+    await User.create({
       name,
       email,
       password: hashedPassword,
-      authMethod: "local"
+      authMethod: "local",
+      isVerified: false, // Explicitly false until verified
+      otp,
+      otpExpires
     });
 
-    const token = generateToken(newUser._id);
+    return res.status(200).json({
+      message: "Verification OTP sent to your email. Please verify to complete registration.",
+      email
+    });
 
-    // Nodemailer Logic
-    if (email.includes("@")) {
-      try {
-        const transporter = nodemailer.createTransport({
-          host: "smtp.gmail.com",
-          port: 465,
-          secure: true,
-          auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-        });
-
-        await transporter.sendMail({
-          from: `"ECOMMERCE SHOP" <${process.env.EMAIL_USER}>`,
-          to: email,
-          subject: "Welcome to ECOMMERCE SHOP",
-          html: `<h2>Hello ${name}!</h2><p>Welcome to the vault.</p>`,
-        });
-      } catch (e) { console.error("Mail Error:", e); }
-    }
-
-    res.status(201).json({ message: "User registered", user: newUser, token });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Register Error:", error.message);
+    return res.status(500).json({ message: "Something went wrong. Please try again." });
   }
 };
+export const verifyOTP = async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required" });
+    }
+
+    // Find the unverified user
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ message: "This email is already verified. Please log in." });
+    }
+
+   //  NEW WAY (Coerces both sides to strings so they match exactly)
+if (String(user.otp).trim() !== String(otp).trim()) {
+  return res.status(400).json({ message: "Invalid verification code." });
+}
+
+    // 2. Check if OTP has expired
+    if (new Date() > user.otpExpires) {
+      return res.status(400).json({ message: "Verification code has expired. Please register again." });
+    }
+
+    // 3. Mark user as verified and clear OTP fields
+    user.isVerified = true;
+    user.otp = null;
+    user.otpExpires = null;
+    await user.save();
+
+    // 4. Generate login token
+    const token = generateToken(user._id);
+
+    return res.status(200).json({
+      message: "Account verified and created successfully!",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
+      },
+      token,
+    });
+
+  } catch (error) {
+    console.error("Verification Error:", error.message);
+    return res.status(500).json({ message: "Something went wrong during verification." });
+  }
+};
+// --- LOCAL REGISTER ---
+// export const register = async (req, res) => {
+//   const { name, email, password } = req.body; // Using 'email' to match updated model
+
+//   try {
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) return res.status(400).json({ message: "User already exists" });
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     const newUser = await User.create({
+//       name,
+//       email,
+//       password: hashedPassword,
+//       authMethod: "local"
+//     });
+
+//     const token = generateToken(newUser._id);
+
+//     // Nodemailer Logic
+//     if (email.includes("@")) {
+//       try {
+//         const transporter = nodemailer.createTransport({
+//           host: "smtp.gmail.com",
+//           port: 465,
+//           secure: true,
+//           auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+//         });
+
+//         await transporter.sendMail({
+//           from: `"ECOMMERCE SHOP" <${process.env.EMAIL_USER}>`,
+//           to: email,
+//           subject: "Welcome to ECOMMERCE SHOP",
+//           html: `<h2>Hello ${name}!</h2><p>Welcome to the vault.</p>`,
+//         });
+//       } catch (e) { console.error("Mail Error:", e); }
+//     }
+
+//     res.status(201).json({ message: "User registered", user: newUser, token });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 
 // --- LOCAL LOGIN ---
 export const login = async (req, res) => {
@@ -100,6 +235,9 @@ export const login = async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
+    if (!user.isVerified) {
+  return res.status(403).json({ message: "Please verify your email before logging in." });
+}
     if (!user) return res.status(400).json({ message: "Invalid credentials" }); // Vague for security
 
     if (user.authMethod === "google") {

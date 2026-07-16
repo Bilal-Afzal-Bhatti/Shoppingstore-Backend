@@ -6,7 +6,7 @@ import {
     googleAuth,    // 1. Add the new controller import
     getProfile,
     updateUser,
-   
+    verifyOTP,   // 2. Add the new controller import
 } from "../controllers/authController.js";
 
 const router = express.Router();
@@ -15,7 +15,7 @@ const router = express.Router();
 
 // Standard Email/Password Register
 router.post("/register", register);
-
+router.post("/verify-otp", verifyOTP);
 // Standard Email/Password Login
 router.post("/login", login);
 
