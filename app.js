@@ -34,7 +34,8 @@ app.use(cookieParser());
 
 const allowedOrigins = [
   "http://localhost:5174",    
-             // Local Vite Dev
+     "http://localhost:5173",  
+     "http://localhost:5731",          // Local Vite Dev
   "https://shopping-store-blond-one.vercel.app", // Production Vercel
   "https://admin-panel-cms-psi.vercel.app",    // Production Backend  
   "http://192.168.18.40:5173",                 // Local IP Vite Dev
