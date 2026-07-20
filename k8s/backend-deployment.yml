@@ -6,7 +6,7 @@ metadata:
   labels:
     app: ecommerce-backend
 spec:
-  replicas: 2                    # ✅ 2 instances for high availability
+  replicas: 2
   selector:
     matchLabels:
       app: ecommerce-backend
@@ -15,9 +15,11 @@ spec:
       labels:
         app: ecommerce-backend
     spec:
+      imagePullSecrets:
+        - name: dockerhub-secret
       containers:
       - name: backend
-        image: yourdockerhub/ecommerce-backend:v1.0
+        image: bilalafzalbhatti/shopping_store_backend:latest
         ports:
         - containerPort: 5731
         env:
@@ -33,6 +35,26 @@ spec:
             secretKeyRef:
               name: ecommerce-secrets
               key: JWT_SECRET
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ecommerce-secrets
+              key: STRIPE_SECRET_KEY
+        - name: GOOGLE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: ecommerce-secrets
+              key: GOOGLE_CLIENT_ID
+        - name: EMAIL_USER
+          valueFrom:
+            secretKeyRef:
+              name: ecommerce-secrets
+              key: NODEMAILER_EMAIL
+        - name: EMAIL_PASS
+          valueFrom:
+            secretKeyRef:
+              name: ecommerce-secrets
+              key: NODEMAILER_PASSWORD
         resources:
           requests:
             memory: "128Mi"
