@@ -22,8 +22,8 @@ jobs:
     - name: Build and Push Docker Image
       uses: docker/build-push-action@v5
       with:
-        context: ./Backend
-        file: ./Backend/Dockerfile
+        context: .                 # 🎯 Changed from ./Backend to root
+        file: ./Dockerfile         # 🎯 Changed from ./Backend/Dockerfile to root
         push: true
         tags: bilalafzalbhatti/shopping_store_backend:latest
 
@@ -32,7 +32,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1 # Change this if your EKS cluster is in a different region
+        aws-region: us-east-1
 
     - name: Update Kubeconfig for EKS
       run: |
@@ -40,5 +40,6 @@ jobs:
 
     - name: Deploy to EKS
       run: |
-        kubectl apply -f Backend/k8s/backend-deployment.yml
+        kubectl apply -f k8s/backend-deployment.yml    # 🎯 Removed Backend/ path prefix
+        kubectl apply -f k8s/ingress.yml               # 🎯 Removed Backend/ path prefix
         kubectl rollout restart deployment ecommerce-backend
