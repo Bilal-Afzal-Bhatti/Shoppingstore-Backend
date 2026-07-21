@@ -3,16 +3,24 @@ kind: Ingress
 metadata:
   name: ecommerce-ingress
   annotations:
-    # Essential for AWS ALB Controller
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
 spec:
-  ingressClassName: alb  # 👈 Changed from nginx to alb
+  ingressClassName: alb
   rules:
-  # Frontend Route
   - host: nexcuscart.com
     http:
       paths:
+      # Route all API requests to backend
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: ecommerce-backend-service
+            port:
+              number: 5000
+
+      # Route all web traffic to frontend
       - path: /
         pathType: Prefix
         backend:
@@ -20,15 +28,3 @@ spec:
             name: ecommerce-frontend-service
             port:
               number: 80
-
-  # Backend API Route
-  - host: api.nexcuscart.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: ecommerce-backend-service
-            port:
-              number: 5000
