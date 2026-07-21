@@ -5,20 +5,23 @@ metadata:
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/group.name: ecommerce-group # 👈 Joins the existing ALB
+    alb.ingress.kubernetes.io/group.name: ecommerce-group
 spec:
   ingressClassName: alb
   rules:
   - host: nexcuscart.com
     http:
       paths:
+      # Backend API Route (Matched to service port 5731)
       - path: /api
         pathType: Prefix
         backend:
           service:
             name: ecommerce-backend-service
             port:
-              number: 5000
+              number: 5731  # 👈 Fixed: matches ecommerce-backend-service port
+
+      # Frontend Web Route
       - path: /
         pathType: Prefix
         backend:
