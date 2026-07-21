@@ -1,31 +1,29 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ecommerce-ingress
+  name: ecommerce-backend-ingress
+  namespace: default
   annotations:
+    kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/group.name: ecommerce-group
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:YOUR_ACCOUNT_ID:certificate/YOUR_ACM_CERT_ID
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    
+    # 🔗 Group name merges separate ingress resources into ONE AWS ALB
+    alb.ingress.kubernetes.io/group.name: "ecommerce-alb-group"
+    alb.ingress.kubernetes.io/group.order: '1' # 👈 Higher priority for /api routes
 spec:
   ingressClassName: alb
   rules:
-  - host: nexcuscart.com
-    http:
-      paths:
-      # Backend API Route (Matched to service port 5731)
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: ecommerce-backend-service
-            port:
-              number: 5731  # 👈 Fixed: matches ecommerce-backend-service port
-
-      # Frontend Web Route
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: ecommerce-frontend-service
-            port:
-              number: 80
+    - host: nexcuscart.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: ecommerce-backend-service
+                port:
+                  number: 5000
