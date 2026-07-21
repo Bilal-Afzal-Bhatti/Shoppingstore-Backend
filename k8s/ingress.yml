@@ -9,7 +9,7 @@ spec:
   ingressClassName: nginx  # Ensure your NGINX ingress controller class is defined
   rules:
   # Frontend Route
-  - host: nexcuscart.net
+  - host: nexcuscart.com
     http:
       paths:
       - path: /
@@ -21,7 +21,7 @@ spec:
               number: 80
 
   # Backend API Route
-  - host: api.nexcuscart.net
+  - host: api.nexcuscart.com
     http:
       paths:
       - path: /
@@ -30,16 +30,4 @@ spec:
           service:
             name: ecommerce-backend-service
             port:
-              number: 5731
-
-  # Admin Panel Route
-  - host: admin.nexcuscart.net
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: ecommerce-admin-service
-            port:
-              number: 80
+              number: 5000  # Updated to match Express app port
