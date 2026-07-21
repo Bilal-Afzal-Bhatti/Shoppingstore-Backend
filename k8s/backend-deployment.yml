@@ -50,12 +50,12 @@ spec:
           valueFrom:
             secretKeyRef:
               name: ecommerce-secrets
-              key: NODEMAILER_EMAIL
+              key: EMAIL_USER
         - name: EMAIL_PASS
           valueFrom:
             secretKeyRef:
               name: ecommerce-secrets
-              key: NODEMAILER_PASSWORD
+              key:  EMAIL_PASS
         resources:
           requests:
             memory: "128Mi"
