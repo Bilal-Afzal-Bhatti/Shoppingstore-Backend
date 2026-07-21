@@ -8,7 +8,7 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:YOUR_ACCOUNT_ID:certificate/YOUR_ACM_CERT_ID
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:27047:certificate/e5caaf3d-8a16-4128-a8
     alb.ingress.kubernetes.io/ssl-redirect: '443'
     
     # 🔗 Group name merges separate ingress resources into ONE AWS ALB
