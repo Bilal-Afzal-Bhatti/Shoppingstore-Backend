@@ -3,10 +3,11 @@ kind: Ingress
 metadata:
   name: ecommerce-ingress
   annotations:
-    # Optional: SSL Redirection if using cert-manager / TLS
-    # ingress.kubernetes.io/ssl-redirect: "true"
+    # Essential for AWS ALB Controller
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
 spec:
-  ingressClassName: nginx  # Ensure your NGINX ingress controller class is defined
+  ingressClassName: alb  # 👈 Changed from nginx to alb
   rules:
   # Frontend Route
   - host: nexcuscart.com
@@ -30,4 +31,4 @@ spec:
           service:
             name: ecommerce-backend-service
             port:
-              number: 5000  # Updated to match Express app port
+              number: 5000
