@@ -1,4 +1,3 @@
-# k8s/backend-deployment.yml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,11 +14,13 @@ spec:
       labels:
         app: ecommerce-backend
     spec:
-      imagePullSecrets:
-        - name: dockerhub-secret
+      # Uncomment if you make the repository private on Docker Hub
+      # imagePullSecrets:
+      #   - name: dockerhub-secret
       containers:
       - name: backend
         image: bilalafzalbhatti/shopping_store_backend:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5731
         env:

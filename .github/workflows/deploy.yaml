@@ -42,3 +42,8 @@ jobs:
           kubectl apply -f k8s/backend-deployment.yml -n default
           kubectl apply -f k8s/ingress.yml -n default
           kubectl rollout restart deployment ecommerce-backend -n default
+
+
+
+
+
