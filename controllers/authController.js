@@ -451,6 +451,91 @@ export const forgotPassword = async (req, res) => {
     });
   }
 };
+export const verifyResetOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: "Email and OTP are required" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user || !user.resetOtp) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP code" });
+    }
+
+    // Check if OTP matches
+    if (user.resetOtp !== otp) {
+      user.failedOtpAttempts = (user.failedOtpAttempts || 0) + 1;
+      
+      // If user enters wrong OTP 5 times, invalidate the current OTP
+      if (user.failedOtpAttempts >= 5) {
+        user.resetOtp = null;
+        user.resetOtpExpiresAt = null;
+        await user.save();
+        return res.status(400).json({
+          success: false,
+          message: "Too many failed attempts. Please request a new OTP code.",
+        });
+      }
+
+      await user.save();
+      return res.status(400).json({ success: false, message: "Invalid OTP code" });
+    }
+
+    // Check if OTP is expired
+    if (!user.resetOtpExpiresAt || new Date() > new Date(user.resetOtpExpiresAt)) {
+      return res.status(400).json({ success: false, message: "OTP code has expired. Please request a new one." });
+    }
+
+    return res.status(200).json({ success: true, message: "OTP verified successfully" });
+  } catch (error) {
+    console.error("Verify OTP Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// 3. POST /api/auth/reset-password
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters long" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user || user.resetOtp !== otp) {
+      return res.status(400).json({ success: false, message: "Invalid OTP session" });
+    }
+
+    if (!user.resetOtpExpiresAt || new Date() > new Date(user.resetOtpExpiresAt)) {
+      return res.status(400).json({ success: false, message: "OTP has expired. Please request a new one." });
+    }
+
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+
+    // Clear reset OTP fields completely
+    user.resetOtp = null;
+    user.resetOtpExpiresAt = null;
+    user.failedOtpAttempts = 0;
+
+    await user.save();
+
+    return res.status(200).json({ success: true, message: "Password reset successful! You can now log in." });
+  } catch (error) {
+    console.error("Reset Password Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
 // ✅ GET WISHLIST
 export const getWishlist = async (req, res) => {
   try {
