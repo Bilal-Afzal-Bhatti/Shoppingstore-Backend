@@ -36,7 +36,7 @@ const allowedOrigins = [
   "http://localhost:5174",    
      "http://localhost:5173",  
      "http://localhost:5731",  
-     'http://nexcuscart.net',
+    
     'https://nexcuscart.net',        // Local Vite Dev
   "https://shopping-store-blond-one.vercel.app", // Production Vercel
   "https://admin-panel-cms-psi.vercel.app",    // Production Backend  

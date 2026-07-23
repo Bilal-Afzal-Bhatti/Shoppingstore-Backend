@@ -230,39 +230,60 @@ if (String(user.otp).trim() !== String(otp).trim()) {
 // };
 
 // --- LOCAL LOGIN ---
+// --- LOCAL LOGIN ---
 export const login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
-    if (!user.isVerified) {
-  return res.status(403).json({ message: "Please verify your email before logging in." });
-}
-    if (!user) return res.status(400).json({ message: "Invalid credentials" }); // Vague for security
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: "Email and password are required" });
+    }
 
-    if (user.authMethod === "google") {
-      return res.status(400).json({ 
-        message: "Account linked to Google. Please use 'Continue with Google'." 
+    // 1. Check if user exists FIRST
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
+    }
+
+    // 2. Check if user is verified SECOND
+    if (!user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Please verify your email before logging in.",
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+    // 3. Handle Google accounts attempting local login
+    if (user.authMethod === "google") {
+      return res.status(400).json({
+        success: false,
+        message: "Account linked to Google. Please use 'Continue with Google'.",
+      });
+    }
 
+    // 4. Compare Passwords
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
+    }
+
+    // 5. Generate Token and respond
     const token = generateToken(user._id);
 
-    // Convert to object and delete password before sending to frontend
     const userResponse = user.toObject();
     delete userResponse.password;
+    delete userResponse.otp;
+    delete userResponse.otpExpires;
 
-    res.json({ 
+    return res.status(200).json({
       success: true,
-      message: "Login successful", 
-      user: userResponse, 
-      token 
+      message: "Login successful",
+      user: userResponse,
+      token,
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    console.error("Login Error:", error.message);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 // --- UPDATE PROFILE ---
