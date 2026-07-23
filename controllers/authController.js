@@ -351,50 +351,104 @@ export const toggleWishlist = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
-
+const transporter = nodemailer.createTransport({
+  service: "gmail", // Or your preferred SMTP provider
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 // controllers/authController.ts
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
     const user = await User.findOne({ email });
 
     if (!user) {
-      // Return 200/generic message to prevent email enumeration attacks
-      return res.status(200).json({ success: true, message: 'If an account exists, an OTP has been sent.' });
+      // Security: Return generic message to prevent email enumeration attacks
+      return res.status(200).json({
+        success: true,
+        message: "If an account exists with this email, an OTP has been sent.",
+      });
     }
 
     const NOW = new Date();
     const WINDOW_DURATION = 15 * 60 * 1000; // 15 minutes window
     const MAX_ATTEMPTS = 3;
 
-    // Check if window expired; if so, reset the window counter
-    if (!user.otpRequestWindowStart || (NOW.getTime() - user.otpRequestWindowStart.getTime()) > WINDOW_DURATION) {
+    // Check if the rate-limit window has expired; if so, reset counter & window start time
+    if (
+      !user.otpRequestWindowStart ||
+      NOW.getTime() - new Date(user.otpRequestWindowStart).getTime() > WINDOW_DURATION
+    ) {
       user.otpRequestWindowStart = NOW;
       user.otpRequestCount = 0;
     }
 
-    // Enforce Rate Limit
+    // Enforce Rate Limit (Max 3 attempts per 15 minutes)
     if (user.otpRequestCount >= MAX_ATTEMPTS) {
       return res.status(429).json({
         success: false,
-        message: 'Too many password reset attempts. Please try again after 15 minutes.',
+        message: "Too many password reset requests. Please try again after 15 minutes.",
       });
     }
 
-    // Increment request count & generate OTP
+    // Increment request count & generate 6-digit numeric OTP
     user.otpRequestCount += 1;
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.resetOtp = otp;
-    user.resetOtpExpiresAt = new Date(NOW.getTime() + 10 * 60 * 1000); // Valid 10 mins
-    user.failedOtpAttempts = 0; // Reset failed verification counter
+    user.resetOtpExpiresAt = new Date(NOW.getTime() + 10 * 60 * 1000); // Valid for 10 minutes
+    user.failedOtpAttempts = 0; // Reset failed verification attempts counter
 
     await user.save();
 
-    // Send email using Nodemailer...
+    // 2. Nodemailer HTML Template & Email Sending
+    const mailOptions = {
+      from: `"Exclusive Store Support" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: "Password Reset Verification Code",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+          <h2 style="color: #DB4444; text-align: center; margin-bottom: 20px;">Password Reset Request</h2>
+          <p style="color: #333; font-size: 15px;">Hello <strong>${user.name || "User"}</strong>,</p>
+          <p style="color: #555; font-size: 14px; line-height: 1.5;">
+            We received a request to reset your password. Use the verification code below to proceed:
+          </p>
+          
+          <div style="text-align: center; margin: 25px 0;">
+            <span style="background-color: #f4f4f4; color: #DB4444; font-size: 28px; font-weight: bold; letter-spacing: 6px; padding: 12px 28px; border-radius: 6px; border: 1px dashed #DB4444; display: inline-block;">
+              ${otp}
+            </span>
+          </div>
 
-    return res.status(200).json({ success: true, message: 'OTP sent to email successfully' });
+          <p style="color: #777; font-size: 13px; text-align: center;">
+            This code will expire in <strong>10 minutes</strong>.
+          </p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            If you did not request a password reset, please ignore this email.
+          </p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: "If an account exists with this email, an OTP has been sent.",
+    });
   } catch (error) {
-    return res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("Nodemailer / Forgot Password Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "An internal error occurred while processing your request.",
+    });
   }
 };
 // ✅ GET WISHLIST
