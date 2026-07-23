@@ -7,6 +7,7 @@ import {
     getProfile,
     updateUser,
     verifyOTP,   // 2. Add the new controller import
+    forgotPassword, // 3. Add the new controller import
 } from "../controllers/authController.js";
 
 const router = express.Router();
@@ -18,7 +19,7 @@ router.post("/register", register);
 router.post("/verify-otp", verifyOTP);
 // Standard Email/Password Login
 router.post("/login", login);
-
+router.post("/forgot-password", forgotPassword);
 // 🚀 GOOGLE OAUTH (Handles both Signup and Login)
 router.post("/google", googleAuth);
 

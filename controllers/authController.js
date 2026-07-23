@@ -351,6 +351,52 @@ export const toggleWishlist = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
+
+// controllers/authController.ts
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      // Return 200/generic message to prevent email enumeration attacks
+      return res.status(200).json({ success: true, message: 'If an account exists, an OTP has been sent.' });
+    }
+
+    const NOW = new Date();
+    const WINDOW_DURATION = 15 * 60 * 1000; // 15 minutes window
+    const MAX_ATTEMPTS = 3;
+
+    // Check if window expired; if so, reset the window counter
+    if (!user.otpRequestWindowStart || (NOW.getTime() - user.otpRequestWindowStart.getTime()) > WINDOW_DURATION) {
+      user.otpRequestWindowStart = NOW;
+      user.otpRequestCount = 0;
+    }
+
+    // Enforce Rate Limit
+    if (user.otpRequestCount >= MAX_ATTEMPTS) {
+      return res.status(429).json({
+        success: false,
+        message: 'Too many password reset attempts. Please try again after 15 minutes.',
+      });
+    }
+
+    // Increment request count & generate OTP
+    user.otpRequestCount += 1;
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.resetOtp = otp;
+    user.resetOtpExpiresAt = new Date(NOW.getTime() + 10 * 60 * 1000); // Valid 10 mins
+    user.failedOtpAttempts = 0; // Reset failed verification counter
+
+    await user.save();
+
+    // Send email using Nodemailer...
+
+    return res.status(200).json({ success: true, message: 'OTP sent to email successfully' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
 // ✅ GET WISHLIST
 export const getWishlist = async (req, res) => {
   try {
